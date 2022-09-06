@@ -1,7 +1,9 @@
 from ldm.simplet2i import T2I
 
-
-model   = T2I()
+try:
+    model = T2I()
+except: # TODO: add precise exception for missing checkpoint file
+    model = None
 # t2i = T2I(
 #     weights='./models/ldm/stable-diffusion-v1/model.ckpt',
 #     config='./configs/stable-diffusion/v1-inference.yaml',
@@ -23,6 +25,8 @@ def generate_image(text_prompt:str):
     #     im   = row[0]
     #     seed = row[1]
     #     im.save(f'./outputs/image-{seed}.png')
+    if model is None:
+        return 'misc/test_img.jpg'
     outputs = model.txt2img(text_prompt)
     img_path = outputs[0][0]
     return img_path
