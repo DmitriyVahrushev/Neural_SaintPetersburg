@@ -23,7 +23,9 @@ python3 scripts/preload_models.py
 TELEGRAM_API_TOKEN = 'YOUR TOKEN'
 ```
 4. (Optional) Download Stable-Diffusion checkpoint
-Go to https://huggingface.co/CompVis/stable-diffusion-v-1-4-original and download sd-v1-4.ckpt . Place it in models/ldm/stable-diffusion-v1
+Go to https://huggingface.co/CompVis/stable-diffusion-v-1-4-original and download sd-v1-4.ckpt . Place it in models/ldm/stable-diffusion-v1 .
+
+WARNING: If sd-v1-4.ckpt wasns't downloaded the bot always will return the same test image.
 
 5. Run telegram bot
 ```
