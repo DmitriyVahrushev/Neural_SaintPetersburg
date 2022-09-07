@@ -1,5 +1,5 @@
 import logging
-from PIL import Image, ImageDraw, ImageFont
+from add_text import add_txt
 
 from configs import TELEGRAM_API_TOKEN
 from image_generation import generate_image
@@ -33,27 +33,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def add_txt(title: str, img_path: str):
-    """Adding text on image"""
-
-    img = Image.open(img_path, "r")
-    img_width, img_height = img.size
-
-    drawing = ImageDraw.Draw(img)
-
-    font = ImageFont.truetype("stable-diffusion/font/font.ttf", 30)  # шрифт и размера
-    text_width, text_height = drawing.textsize(title, font)
-
-    pos = (
-        (img_width - text_width) // 2,
-        (img_height - text_height),
-    )
-
-    drawing.text(pos, title, font=font, fill="white")
-
-    return img
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
@@ -80,7 +59,7 @@ async def general_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     text = update.message.text
     image = add_txt(text)
     image.save("test.jpg")
-    await update.message.reply_photo(open(img_path, "rb"))
+    await update.message.reply_photo(open(image, "rb"))
 
 
 def main() -> None:
