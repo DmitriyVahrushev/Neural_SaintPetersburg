@@ -1,5 +1,6 @@
 import logging
 from telegram import __version__ as TG_VER
+from translation_rus_to_eng import translate
 
 try:
     from telegram import __version_info__
@@ -42,7 +43,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def general_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Reply to the user text."""
     text_prompt = update.message.text
-    img_path = generate_image(text_prompt)
+
+    # translating from rus to eng
+    eng_text_prompt = translate(text_prompt)
+
+    img_path = generate_image(eng_text_prompt)
     await update.message.reply_photo(open(img_path, 'rb'))
 
 
