@@ -57,8 +57,8 @@ async def general_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # adding text part
     await update.message.reply_text("Add text on photo")
     text = update.message.text
-    image = add_txt(text)
-    image.save("test.jpg")
+    image = add_txt(text, img_path)
+    image.save("result.jpg")
     await update.message.reply_photo(open(image, "rb"))
 
 
