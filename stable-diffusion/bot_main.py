@@ -1,16 +1,20 @@
+from gzip import READ
 import logging
+from typing import Dict
 from add_text import add_txt
 
 from configs import TELEGRAM_API_TOKEN
 from image_generation import generate_image
 from telegram import __version__ as TG_VER
 from translation_rus_to_eng import translate
-from telegram import ForceReply, Update
+from telegram import ForceReply, Update, ReplyKeyboardRemove
 from telegram.ext import (
+    ConversationHandler,
     Application,
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    PicklePersistence,
     filters,
 )
 
@@ -33,66 +37,189 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+CREATE_PACK, SAVE_STICKERPACK_NAME, GENERATE_STICKER, SAVE_STICKER, SAVE_EMOJI, SAVE_STICKERPACK = range(6)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
     await update.message.reply_html(
-        rf"Hi {user.mention_html()}!",
+        rf"Привет {user.mention_html()}! Введите команду /create_new_stickerpack, чтобы начать генерацию стикерпака",
         reply_markup=ForceReply(selective=True),
     )
+    return CREATE_PACK
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
-    await update.message.reply_text("Help!")
+    await update.message.reply_text("""Введите команду /cancel чтобы начать процесс генерации заново.
+    
+    """)
 
 
-async def general_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Reply to the user text."""
-    # stable diffusion part
+async def create_new_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    print(update.to_dict())
+    await update.message.reply_text('Введите название для стикерпака.')
+    return SAVE_STICKERPACK_NAME
+
+
+async def save_stickerpack_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    stickerpack_name = update.message.text
+    context.user_data['current_stickerpack_name'] = stickerpack_name.lower().replace(' ','')[:40]
+    context.user_data['stickers'] = []
+    context.user_data['emojis'] = []
+    await update.message.reply_text('Введите текстовое описание стикера, который хотите сгенерировать.')
+    return GENERATE_STICKER
+
+
+async def generate_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text('Стикер генерируется...')
     text_prompt = update.message.text
-    text_prompt = text_prompt.lower().replace('казанский собор', '*')
+    text_prompt = text_prompt.lower().replace('казанский собор', '*') #use stemming here
     # translating from rus to eng
     eng_text_prompt = translate(text_prompt)
     eng_text_prompt = 'a photo of ' + eng_text_prompt + ', hd'
     print(f'English translation: {eng_text_prompt}')
     img_path = generate_image(eng_text_prompt)
-    #await update.message.reply_photo(open(img_path, 'rb'))
+    context.user_data['current_sticker_image_path'] = img_path
+    await update.message.reply_photo(open(img_path, 'rb'))
+    await update.message.reply_text(
+        f"""Стикер сгенерирован! 
+        Введите команду /save_sticker, чтобы добавить стикер в стикерпак {context.user_data['current_stickerpack_name']}.
+        Введите команду /generate_text , чтобы сгенерировать нейросетью подпись к стикеру.
+        Введите текст, чтобы добавить самому текст на картинке.
+        Введите команду /skip_sticker , чтобы сгенерировать стикер заново
+        """
+    )
+    return SAVE_STICKER
+    
 
-    # adding text part
-    #await update.message.reply_text("Add text on photo")
-    text = update.message.text
+async def generate_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text 
+    img_path = context.user_data['current_sticker_image_path']
     image = add_txt(text, img_path)
-    save_path = 'outputs/img-samples/test-result.jpg'
-    image.save("outputs/img-samples/test-result.jpg")
+    save_path = img_path#'outputs/img-samples/test-result.jpg'
+    image.save(img_path)
     await update.message.reply_photo(open(save_path, "rb"))
+    return SAVE_STICKER
 
 
-def create_sticker_set(update, context):
+async def add_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    img_path = context.user_data['current_sticker_image_path']
+    image = add_txt(text, img_path)
+    save_path = img_path#'outputs/img-samples/test-result.jpg'
+    image.save(img_path)
+    await update.message.reply_photo(open(save_path, "rb"))
+    await update.message.reply_text("""Введите команду /save_sticker, чтобы добавить стикер в стикерпак test_sticker_2.
+        Введите команду /skip_sticker , чтобы сгенерировать стикер заново""")
+    return SAVE_STICKER
 
-    update_dict = update.to_dict()
 
-    sticker_file_id = update_dict["message"]["document"]["file_id"]
+async def save_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.create_new_sticker_set(update.message.chat.id, name=f"{context.user_data['current_stickerpack_name']}_by_neural_spb_bot", 
+        title=context.user_data['current_stickerpack_name'], png_sticker=open(context.user_data['stickers'][0], 'rb'),
+        emojis=context.user_data['emojis'][0],
+        )
+    for i in range(1,len(context.user_data['stickers'])):
+        await context.bot.add_sticker_to_set(update.message.chat.id, name=f"{context.user_data['current_stickerpack_name']}_by_neural_spb_bot", 
+        emojis=context.user_data['emojis'][i], png_sticker=open(context.user_data['stickers'][i], 'rb'),)
+    # empty user data
+    context.user_data['stickers'] = []
+    context.user_data['emojis'] = []
+    await update.message.reply_text(
+        f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{context.user_data['current_stickerpack_name']}_by_neural_spb_bot"
+    )
+    return ConversationHandler.END
 
-    print("sticker_file_id=", sticker_file_id)
-    # sticker_file = context.bot.upload_sticker_file(MY_USER_ID, sticker_file_id)
 
-    context.bot.create_new_sticker_set(MY_USER_ID, "lala_by_my_fake_bot", "lala", sticker_file_id, "😀😃😁")
+async def save_sticker_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Введите эмоджи, который будет связан с этим стикером"
+    )
+    return SAVE_EMOJI
 
+
+async def save_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    emoji = update.message.text
+    #context.user_data['current_sticker_emoji'] = emoji
+    context.user_data['stickers'].append(context.user_data['current_sticker_image_path'])
+    context.user_data['emojis'].append(emoji) # append full sticker information to stickerpack
+    await update.message.reply_text(
+        "Отлично! Стикер сохранен. Введите /save_stickerpack , чтобы сохранить стикерпак. Или /new_sticker , чтобы сгенерировать новый стикер"
+    )
+    return SAVE_STICKER
+
+
+async def skip_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Введите описание для стикера"
+    )
+    return GENERATE_STICKER
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Cancels and ends the conversation."""
+    user = update.message.from_user
+    logger.info("User %s canceled the conversation.", user.first_name)
+    context.user_data['current_stickerpack_name']=''
+    context.user_data['current_sticker_image_path'] = ''
+    context.user_data['current_sticker_emoji'] = ''
+    context.user_data['stickers'] = []
+    context.user_data['emojis'] = []
+    await update.message.reply_text(
+        "Bye! I hope we can talk again some day.", reply_markup=ReplyKeyboardRemove()
+    )
+    return ConversationHandler.END
+
+
+def facts_to_str(user_data: Dict[str, str]) -> str:
+    """Helper function for formatting the gathered user info."""
+    facts = [f"{key} - {value}" for key, value in user_data.items()]
+    return "\n".join(facts).join(["\n", "\n"])
+
+
+async def show_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Display the gathered info."""
+    await update.message.reply_text(
+        f"This is what you already told me: {facts_to_str(context.user_data)}"
+    )
 
 
 def main() -> None:
     """Start the bot."""
-    application = Application.builder().token(TELEGRAM_API_TOKEN).build()
-
-    # on different commands - answer in Telegram
-    application.add_handler(CommandHandler("start", start))
+    persistence = PicklePersistence(filepath="conversationbot")
+    application = Application.builder().token(TELEGRAM_API_TOKEN).persistence(persistence).build()
+    #application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
-    # on non command i.e message
-    application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, general_reply)
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            CREATE_PACK: [CommandHandler('create_new_stickerpack', create_new_stickerpack)],
+            SAVE_STICKERPACK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_stickerpack_name)],
+            GENERATE_STICKER: [MessageHandler(filters.TEXT & ~filters.COMMAND, generate_sticker)],
+            SAVE_STICKER: [CommandHandler('save_sticker', save_sticker_image), 
+                            CommandHandler('generate_text', generate_text), 
+                            MessageHandler(filters.TEXT & ~filters.COMMAND, add_user_text),
+                            CommandHandler('skip_sticker', skip_sticker),
+                            CommandHandler('new_sticker', skip_sticker),
+                            CommandHandler('save_stickerpack', save_stickerpack)
+                        ],
+            SAVE_EMOJI: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_emoji)],
+            SAVE_STICKERPACK:[CommandHandler('save_stickerpack', save_stickerpack)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        name="my_conversation",
+        persistent=True,
     )
+    application.add_handler(conv_handler)
+
+    show_data_handler = CommandHandler("show_data", show_data)
+    application.add_handler(show_data_handler)
+
+    # application.add_handler(
+    #     MessageHandler(filters.TEXT & ~filters.COMMAND, generate_sticker)
+    # )
     application.run_polling()
 
 
