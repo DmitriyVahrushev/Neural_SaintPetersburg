@@ -27,8 +27,9 @@ def generate(
       )
   return list(map(tok.decode, out))
 
+tok, model = load_tokenizer_and_model("sberbank-ai/rugpt3medium_based_on_gpt2")
+
 def text_generate(text):
-    tok, model = load_tokenizer_and_model("sberbank-ai/rugpt3medium_based_on_gpt2")
     generated = generate(model, tok, text, num_beams=10)
 
     return generated[0]

@@ -2,6 +2,7 @@ from gzip import READ
 import logging
 from typing import Dict
 from add_text import add_txt
+from rugpt3.generate_text import text_generate
 
 from configs import TELEGRAM_API_TOKEN
 from image_generation import generate_image
@@ -95,12 +96,16 @@ async def generate_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     
 
 async def generate_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text 
+    #text = update.message.text
+    text = 'В Санкт-Петербурге...'
+    text = text_generate(text) 
     img_path = context.user_data['current_sticker_image_path']
     image = add_txt(text, img_path)
     save_path = img_path#'outputs/img-samples/test-result.jpg'
     image.save(img_path)
     await update.message.reply_photo(open(save_path, "rb"))
+    await update.message.reply_text("""Введите команду /save_sticker, чтобы добавить стикер в стикерпак test_sticker_2.
+        Введите команду /skip_sticker , чтобы сгенерировать стикер заново""")
     return SAVE_STICKER
 
 
@@ -128,8 +133,9 @@ async def save_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['stickers'] = []
     context.user_data['emojis'] = []
     await update.message.reply_text(
-        f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{context.user_data['current_stickerpack_name']}_by_neural_spb_bot"
-    )
+        (f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{context.user_data['current_stickerpack_name']}_by_neural_spb_bot"
+        "Введите команду /create_new_stickerpack , чтобы создать ещё один набор стикеров."
+    ))
     return ConversationHandler.END
 
 
@@ -193,7 +199,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[CommandHandler("start", start), CommandHandler('create_new_stickerpack',create_new_stickerpack)],
         states={
             CREATE_PACK: [CommandHandler('create_new_stickerpack', create_new_stickerpack)],
             SAVE_STICKERPACK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_stickerpack_name)],
