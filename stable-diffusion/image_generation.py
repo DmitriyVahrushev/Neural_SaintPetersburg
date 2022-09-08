@@ -1,7 +1,10 @@
 from ldm.simplet2i import T2I
 
 try:
-    model = T2I()
+    model = T2I(
+        embedding_path='logs/kazan_cathedral_5122022-09-06T20-49-43_my_key/checkpoints/embeddings_gs-3999.pt'
+    )
+    model.load_model()
 except: # TODO: add precise exception for missing checkpoint file
     model = None
 # t2i = T2I(

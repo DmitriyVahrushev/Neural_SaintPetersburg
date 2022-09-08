@@ -9,7 +9,7 @@ def add_txt(title: str, img_path: str):
 
     drawing = ImageDraw.Draw(img)
 
-    font = ImageFont.truetype("stable-diffusion/font/font.ttf", 30)  # шрифт и размера
+    font = ImageFont.truetype("font/font.ttf", 30)  # шрифт и размера
     text_width, text_height = drawing.textsize(title, font)
 
     pos = (

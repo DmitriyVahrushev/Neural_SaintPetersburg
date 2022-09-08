@@ -51,17 +51,34 @@ async def general_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """Reply to the user text."""
     # stable diffusion part
     text_prompt = update.message.text
+    text_prompt = text_prompt.lower().replace('казанский собор', '*')
     # translating from rus to eng
     eng_text_prompt = translate(text_prompt)
+    eng_text_prompt = 'a photo of ' + eng_text_prompt + ', hd'
+    print(f'English translation: {eng_text_prompt}')
     img_path = generate_image(eng_text_prompt)
-    await update.message.reply_photo(open(img_path, 'rb'))
+    #await update.message.reply_photo(open(img_path, 'rb'))
 
     # adding text part
-    await update.message.reply_text("Add text on photo")
+    #await update.message.reply_text("Add text on photo")
     text = update.message.text
     image = add_txt(text, img_path)
-    image.save("result.jpg")
-    await update.message.reply_photo(open(image, "rb"))
+    save_path = 'outputs/img-samples/test-result.jpg'
+    image.save("outputs/img-samples/test-result.jpg")
+    await update.message.reply_photo(open(save_path, "rb"))
+
+
+def create_sticker_set(update, context):
+
+    update_dict = update.to_dict()
+
+    sticker_file_id = update_dict["message"]["document"]["file_id"]
+
+    print("sticker_file_id=", sticker_file_id)
+    # sticker_file = context.bot.upload_sticker_file(MY_USER_ID, sticker_file_id)
+
+    context.bot.create_new_sticker_set(MY_USER_ID, "lala_by_my_fake_bot", "lala", sticker_file_id, "😀😃😁")
+
 
 
 def main() -> None:
