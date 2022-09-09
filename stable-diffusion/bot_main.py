@@ -3,6 +3,7 @@ import logging
 from typing import Dict
 from add_text import add_txt
 from rugpt3.generate_text import text_generate
+#import pymorphy2
 
 from configs import TELEGRAM_API_TOKEN
 from image_generation import generate_image
@@ -37,6 +38,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+#morph = pymorphy2.MorphAnalyzer()
+SPB_PLACES = {'казанский собор':'*', 'лахта':'@', 'зимний дворец':'%'}
 
 CREATE_PACK, SAVE_STICKERPACK_NAME, GENERATE_STICKER, SAVE_STICKER, SAVE_EMOJI, SAVE_STICKERPACK = range(6)
 
@@ -69,19 +72,40 @@ async def save_stickerpack_name(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data['current_stickerpack_name'] = stickerpack_name.lower().replace(' ','')[:40]
     context.user_data['stickers'] = []
     context.user_data['emojis'] = []
-    await update.message.reply_text('Введите текстовое описание стикера, который хотите сгенерировать.')
+    await update.message.reply_text(('Введите текстовое описание стикера, который хотите сгенерировать.' 
+        'beta: Или отправьте боту картинку для режима image2image'))
+    return GENERATE_STICKER
+
+
+async def generate_sticker_img2img(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    photo_file = await update.message.photo[-1].get_file()
+    init_img_path = f'outputs/userphoto_{update.message.chat.id}.png'
+    await photo_file.download(init_img_path)
+    context.user_data['init_img_path'] = init_img_path
+    await update.message.reply_text(('Картинка сохранена!'
+        'Теперь введие текстовое описание того как вы хотите изменить картинку'))
     return GENERATE_STICKER
 
 
 async def generate_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Стикер генерируется...')
-    text_prompt = update.message.text
-    text_prompt = text_prompt.lower().replace('казанский собор', '*') #use stemming here
+    text_prompt = update.message.text.lower()
+    #prompt_words = text_prompt.split()
+    #lemmatized_text = ' '.join([morph.parse(word)[0].normal_form for word in prompt_words])
+    for place_name in SPB_PLACES.keys():        
+        text_prompt = text_prompt.replace(place_name, SPB_PLACES[place_name]) #use stemming here
     # translating from rus to eng
     eng_text_prompt = translate(text_prompt)
     eng_text_prompt = 'a photo of ' + eng_text_prompt + ', hd'
     print(f'English translation: {eng_text_prompt}')
-    img_path = generate_image(eng_text_prompt)
+    if 'init_img_path' in context.user_data:
+        if context.user_data['init_img_path'] is not None:
+            await update.message.reply_text('Генерация стикера в режиме image2image')
+            img_path = generate_image(eng_text_prompt, context.user_data['init_img_path'])
+        else:
+            img_path = generate_image(eng_text_prompt)
+    else:
+        img_path = generate_image(eng_text_prompt)
     context.user_data['current_sticker_image_path'] = img_path
     await update.message.reply_photo(open(img_path, 'rb'))
     await update.message.reply_text(
@@ -97,7 +121,7 @@ async def generate_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def generate_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #text = update.message.text
-    text = 'В Санкт-Петербурге...'
+    text = 'Забавный факт. В Санкт-Петербурге '
     text = text_generate(text) 
     img_path = context.user_data['current_sticker_image_path']
     image = add_txt(text, img_path)
@@ -132,6 +156,7 @@ async def save_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # empty user data
     context.user_data['stickers'] = []
     context.user_data['emojis'] = []
+    context.user_data['init_img_path'] = None
     await update.message.reply_text(
         (f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{context.user_data['current_stickerpack_name']}_by_neural_spb_bot"
         "Введите команду /create_new_stickerpack , чтобы создать ещё один набор стикеров."
@@ -159,7 +184,8 @@ async def save_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def skip_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Введите описание для стикера"
+        ("Введите описание для стикера." 
+        "beta: или отправьте фото боту")
     )
     return GENERATE_STICKER
 
@@ -172,6 +198,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['current_sticker_emoji'] = ''
     context.user_data['stickers'] = []
     context.user_data['emojis'] = []
+    context.user_data['init_img_path'] = None
     await update.message.reply_text(
         "Bye! I hope we can talk again some day.", reply_markup=ReplyKeyboardRemove()
     )
@@ -203,7 +230,7 @@ def main() -> None:
         states={
             CREATE_PACK: [CommandHandler('create_new_stickerpack', create_new_stickerpack)],
             SAVE_STICKERPACK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_stickerpack_name)],
-            GENERATE_STICKER: [MessageHandler(filters.TEXT & ~filters.COMMAND, generate_sticker)],
+            GENERATE_STICKER: [MessageHandler(filters.TEXT & ~filters.COMMAND, generate_sticker), MessageHandler(filters.PHOTO, generate_sticker_img2img)],
             SAVE_STICKER: [CommandHandler('save_sticker', save_sticker_image), 
                             CommandHandler('generate_text', generate_text), 
                             MessageHandler(filters.TEXT & ~filters.COMMAND, add_user_text),
