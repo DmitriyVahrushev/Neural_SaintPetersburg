@@ -6,7 +6,7 @@ from rugpt3.generate_text import text_generate
 #import pymorphy2
 from PIL import Image
 from configs import TELEGRAM_API_TOKEN
-from image_generation import generate_image
+from image_generation import generate_image, compress_image
 from telegram import __version__ as TG_VER
 from translation_rus_to_eng import translate
 from telegram import ForceReply, Update, ReplyKeyboardRemove
@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 #morph = pymorphy2.MorphAnalyzer()
-SPB_PLACES = {'казанский собор':'*', 'лахта':'@', 'зимний дворец':'%'}
+SPB_PLACES = {'казанский собор':'*', 'лахта':'%', 'зимний дворец':'@', 'эрмитаж':'@'}
 
 CREATE_PACK, SAVE_STICKERPACK_NAME, GENERATE_STICKER, SAVE_STICKER, SAVE_EMOJI, SAVE_STICKERPACK = range(6)
 
@@ -57,13 +57,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
     await update.message.reply_text("""Введите команду /cancel чтобы начать процесс генерации заново.
-    /create_new_stickerpack
+    А после команду /create_new_stickerpack .
     """)
 
 
 async def create_new_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     print(update.to_dict())
-    await update.message.reply_text('Введите название для стикерпака.')
+    await update.message.reply_text('Введите название для стикерпака на английском языке, без пробелов. ')
     return SAVE_STICKERPACK_NAME
 
 
@@ -73,7 +73,7 @@ async def save_stickerpack_name(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data['stickers'] = []
     context.user_data['emojis'] = []
     await update.message.reply_text(('Введите текстовое описание стикера, который хотите сгенерировать.' 
-        'beta: Или отправьте боту картинку для режима image2image'))
+        'Или отправьте боту картинку для режима image2image.'))
     return GENERATE_STICKER
 
 
@@ -87,7 +87,7 @@ async def generate_sticker_img2img(update: Update, context: ContextTypes.DEFAULT
         img.save(init_img_path,format="PNG", resample=Image.Resampling.NEAREST)
     context.user_data['init_img_path'] = init_img_path
     await update.message.reply_text(('Картинка сохранена!'
-        'Теперь введие текстовое описание того как вы хотите изменить картинку'))
+        'Теперь введите текстовое описание того, как вы хотите изменить картинку'))
     return GENERATE_STICKER
 
 
@@ -110,6 +110,7 @@ async def generate_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             img_path = generate_image(eng_text_prompt)
     else:
         img_path = generate_image(eng_text_prompt)
+    compress_image(img_path)
     context.user_data['current_sticker_image_path'] = img_path
     context.user_data['init_img_path'] = None
     await update.message.reply_photo(open(img_path, 'rb'))
@@ -190,7 +191,7 @@ async def save_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def skip_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         ("Введите описание для стикера." 
-        "beta: или отправьте фото боту")
+        "Или отправьте фото боту")
     )
     return GENERATE_STICKER
 
@@ -205,7 +206,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['emojis'] = []
     context.user_data['init_img_path'] = None
     await update.message.reply_text(
-        "Bye! I hope we can talk again some day.", reply_markup=ReplyKeyboardRemove()
+        "Процесс создания стикерпака сброшен. Чтобы создать новые стикеры введите /create_new_stickerpack", reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
 
@@ -227,7 +228,6 @@ def main() -> None:
     """Start the bot."""
     persistence = PicklePersistence(filepath="conversationbot")
     application = Application.builder().token(TELEGRAM_API_TOKEN).persistence(persistence).build()
-    #application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
     conv_handler = ConversationHandler(
@@ -254,10 +254,7 @@ def main() -> None:
 
     show_data_handler = CommandHandler("show_data", show_data)
     application.add_handler(show_data_handler)
-
-    # application.add_handler(
-    #     MessageHandler(filters.TEXT & ~filters.COMMAND, generate_sticker)
-    # )
+    
     application.run_polling()
 
 

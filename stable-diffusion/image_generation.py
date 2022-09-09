@@ -1,8 +1,10 @@
 from ldm.simplet2i import T2I
+from PIL import Image
 
+# kazan cathedral checkpoint - logs/kazan_cathedral_5122022-09-06T20-49-43_my_key/checkpoints/embeddings_gs-3999.pt
 try:
     model = T2I(
-        embedding_path='fin_embeddings/embedding.pt'
+        embedding_path='fin_embeddings/embedding_3.pt'
     )
     model.load_model()
 except FileNotFoundError:
@@ -17,6 +19,9 @@ except FileNotFoundError:
 # )
 # t2i.load_model()
 
+def compress_image(image_path):
+    img = Image.open(image_path)
+    img.save(image_path,optimize=True,quality=70)
 
 def generate_image(text_prompt:str, init_img_path=None):
     # results = t2i.prompt2image(
