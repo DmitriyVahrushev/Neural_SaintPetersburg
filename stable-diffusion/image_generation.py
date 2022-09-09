@@ -2,10 +2,11 @@ from ldm.simplet2i import T2I
 
 try:
     model = T2I(
-        embedding_path='stable-diffusion/fin_embeddings/embedding.pt'
+        embedding_path='fin_embeddings/embedding.pt'
     )
     model.load_model()
-except: # TODO: add precise exception for missing checkpoint file
+except FileNotFoundError:
+    print('Some checkpoints files are missing. Model isn\'t loaded')
     model = None
 
 # t2i = T2I(

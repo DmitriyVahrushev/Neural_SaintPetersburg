@@ -107,6 +107,7 @@ async def generate_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     else:
         img_path = generate_image(eng_text_prompt)
     context.user_data['current_sticker_image_path'] = img_path
+    context.user_data['init_img_path'] = None
     await update.message.reply_photo(open(img_path, 'rb'))
     await update.message.reply_text(
         f"""Стикер сгенерирован! 
