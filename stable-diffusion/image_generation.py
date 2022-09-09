@@ -4,7 +4,7 @@ from PIL import Image
 # kazan cathedral checkpoint - logs/kazan_cathedral_5122022-09-06T20-49-43_my_key/checkpoints/embeddings_gs-3999.pt
 try:
     model = T2I(
-        embedding_path='fin_embeddings/embedding_3.pt'
+        embedding_path='fin_embeddings/embedding_4.pt'
     )
     model.load_model()
 except FileNotFoundError:
@@ -21,7 +21,10 @@ except FileNotFoundError:
 
 def compress_image(image_path):
     img = Image.open(image_path)
-    img.save(image_path,optimize=True,quality=70)
+    image_path_jpg = f'{image_path[:-4]}.jpg'
+    img.save(image_path_jpg,'JPEG',optimize=True,quality=20)
+    img = Image.open(image_path_jpg)
+    img.save(image_path,'PNG', optimize=True,quality=10)
 
 def generate_image(text_prompt:str, init_img_path=None):
     # results = t2i.prompt2image(

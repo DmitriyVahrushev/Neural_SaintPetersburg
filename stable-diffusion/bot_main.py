@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 #morph = pymorphy2.MorphAnalyzer()
-SPB_PLACES = {'казанский собор':'*', 'лахта':'%', 'зимний дворец':'@', 'эрмитаж':'@'}
+SPB_PLACES = {'казанский собор':'*', 'лахта':'%', 'зимний дворец':'@', 'эрмитаж':'@', 'медный всадник':'#'}
 
 CREATE_PACK, SAVE_STICKERPACK_NAME, GENERATE_STICKER, SAVE_STICKER, SAVE_EMOJI, SAVE_STICKERPACK = range(6)
 
@@ -117,18 +117,17 @@ async def generate_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await update.message.reply_text(
         f"""Стикер сгенерирован! 
         Введите команду /save_sticker, чтобы добавить стикер в стикерпак {context.user_data['current_stickerpack_name']}.
-        Введите команду /generate_text , чтобы сгенерировать нейросетью подпись к стикеру.
         Введите текст, чтобы добавить самому текст на картинке.
         Введите команду /skip_sticker , чтобы сгенерировать стикер заново
         """
-    )
+    ) # Введите команду /generate_text , чтобы сгенерировать нейросетью подпись к стикеру.
     return SAVE_STICKER
     
 
 async def generate_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #text = update.message.text
     text = 'Забавный факт. В Санкт-Петербурге '
-    text = text_generate(text) 
+    text = text_generate(text)[14:80]
     img_path = context.user_data['current_sticker_image_path']
     image = add_txt(text, img_path)
     save_path = img_path#'outputs/img-samples/test-result.jpg'
@@ -140,7 +139,7 @@ async def generate_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def add_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    text = update.message.text[:60]
     img_path = context.user_data['current_sticker_image_path']
     image = add_txt(text, img_path)
     save_path = img_path#'outputs/img-samples/test-result.jpg'
@@ -152,19 +151,20 @@ async def add_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def save_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.create_new_sticker_set(update.message.chat.id, name=f"{context.user_data['current_stickerpack_name']}_by_neural_spb_bot", 
+    stickerpack_name = f"{context.user_data['current_stickerpack_name']}_new_by_neural_spb_bot"
+    await context.bot.create_new_sticker_set(update.message.chat.id, name=stickerpack_name, 
         title=context.user_data['current_stickerpack_name'], png_sticker=open(context.user_data['stickers'][0], 'rb'),
         emojis=context.user_data['emojis'][0],
         )
     for i in range(1,len(context.user_data['stickers'])):
-        await context.bot.add_sticker_to_set(update.message.chat.id, name=f"{context.user_data['current_stickerpack_name']}_by_neural_spb_bot", 
+        await context.bot.add_sticker_to_set(update.message.chat.id, name=stickerpack_name, 
         emojis=context.user_data['emojis'][i], png_sticker=open(context.user_data['stickers'][i], 'rb'),)
     # empty user data
     context.user_data['stickers'] = []
     context.user_data['emojis'] = []
     context.user_data['init_img_path'] = None
     await update.message.reply_text(
-        (f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{context.user_data['current_stickerpack_name']}_by_neural_spb_bot ."
+        (f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{stickerpack_name} ."
         "Введите команду /create_new_stickerpack , чтобы создать ещё один набор стикеров."
     ))
     return ConversationHandler.END
@@ -254,7 +254,7 @@ def main() -> None:
 
     show_data_handler = CommandHandler("show_data", show_data)
     application.add_handler(show_data_handler)
-    
+
     application.run_polling()
 
 
