@@ -4,7 +4,7 @@ from typing import Dict
 from add_text import add_txt
 from rugpt3.generate_text import text_generate
 #import pymorphy2
-
+from PIL import Image
 from configs import TELEGRAM_API_TOKEN
 from image_generation import generate_image
 from telegram import __version__ as TG_VER
@@ -57,7 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
     await update.message.reply_text("""Введите команду /cancel чтобы начать процесс генерации заново.
-    
+    /create_new_stickerpack
     """)
 
 
@@ -79,8 +79,12 @@ async def save_stickerpack_name(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def generate_sticker_img2img(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     photo_file = await update.message.photo[-1].get_file()
-    init_img_path = f'outputs/userphoto_{update.message.chat.id}.png'
+    init_img_path = f'outputs/userphoto_{update.message.chat.id}.png' 
     await photo_file.download(init_img_path)
+    size = (512, 512)
+    with Image.open(init_img_path) as img:
+        img = img.resize(size)
+        img.save(init_img_path,format="PNG", resample=Image.Resampling.NEAREST)
     context.user_data['init_img_path'] = init_img_path
     await update.message.reply_text(('Картинка сохранена!'
         'Теперь введие текстовое описание того как вы хотите изменить картинку'))
@@ -159,7 +163,7 @@ async def save_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['emojis'] = []
     context.user_data['init_img_path'] = None
     await update.message.reply_text(
-        (f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{context.user_data['current_stickerpack_name']}_by_neural_spb_bot"
+        (f"Стикерпак создан! Cсылка на добавление: t.me/addstickers/{context.user_data['current_stickerpack_name']}_by_neural_spb_bot ."
         "Введите команду /create_new_stickerpack , чтобы создать ещё один набор стикеров."
     ))
     return ConversationHandler.END
