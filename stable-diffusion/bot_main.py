@@ -44,14 +44,18 @@ SPB_PLACES = {'казанский собор':'*', 'лахта':'%', 'зимни
 CREATE_PACK, SAVE_STICKERPACK_NAME, GENERATE_STICKER, SAVE_STICKER, SAVE_EMOJI, SAVE_STICKERPACK = range(6)
 
 
+GREET_MESSAGE = """Бот позволяет генерировать стикеры с достопримечательностями Санкт-Петербурга и не только!
+    На данный момент доступны Казанский собор, Медный всадник, Зимний дворец, Лахта центр, а также можно добавить свои фото 
+    и генерировать стикеры на их основе. 
+    Введите команду /create_new_stickerpack, чтобы начать генерацию стикерпака"""
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
-    await update.message.reply_text(
-        (f"Привет! Бот позволяет генерировать стикеры с достопримечательностями Санкт-Петербурга и не только!"
-         "На данный момент доступны Казанский собор, Медный всадник, Зимний дворец, Лахта центр, а также можно добавить свои фото"
-         "и генерировать стикеры на их основе. Введите команду /create_new_stickerpack, чтобы начать генерацию стикерпака",
-    ))
+    await update.message.reply_html(
+        rf"Привет {user.mention_html()}! {GREET_MESSAGE}",
+        reply_markup=ForceReply(selective=True),
+    )
     return CREATE_PACK
 
 
@@ -64,7 +68,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def create_new_stickerpack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     print(update.to_dict())
-    await update.message.reply_text('Введите название для стикерпака на английском языке, без пробелов. ')
+    await update.message.reply_text('Введите название для стикерпака на английском языке, без пробелов.')
     return SAVE_STICKERPACK_NAME
 
 
@@ -74,7 +78,8 @@ async def save_stickerpack_name(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data['stickers'] = []
     context.user_data['emojis'] = []
     await update.message.reply_text(('Введите текстовое описание стикера, который хотите сгенерировать.' 
-        'Или отправьте боту картинку для режима image2image.'))
+        'Или отправьте боту картинку для режима image2image.'
+        'Имена достопримечатальностей пишите только в именительном падеже.'))
     return GENERATE_STICKER
 
 
