@@ -1,44 +1,51 @@
 from PIL import Image, ImageDraw, ImageFont
 
 
-def break_text(txt: str, font, max_width: int):
+def text_wrap(text: str, font, max_width: int):
+    lines = list()
 
-    # We share the subset to remember the last finest guess over
-    # the text breakpoint and make it faster
-    subset: int = len(txt)
+    # If the text width is smaller than the image width, then no need to split
+    # just add it to the line list and return
+    if font.getsize(text)[0] <= max_width:
+        lines.append(text)
+    else:
+        # split the line by spaces to get words
+        words = text.split(" ")
+        i = 0
+        # append every word to a line while its width is shorter than the image width
+        while i < len(words):
+            line = ""
+            while i < len(words) and font.getsize(line + words[i])[0] <= max_width:
+                line = line + words[i] + " "
+                i += 1
+            if not line:
+                line = words[i]
+                i += 1
+            lines.append(line)
 
-    text_size = len(txt)
-    while text_size > 0:
-
-        # Let's find the appropriate subset size
-        while True:
-            width, height = font.getsize(txt[:subset])
-            letter_size: float = width / subset
-
-            # min/max(..., subset +/- 1) are to avoid looping infinitely over a wrong value
-            if width < max_width - letter_size and text_size >= subset:  # Too short
-                subset = max(int(max_width * subset / width), subset + 1)
-            elif width > max_width:  # Too large
-                subset = min(int(max_width * subset / width), subset - 1)
-            else:  # Subset fits, we exit
-                break
-
-        yield txt[:subset]
-        txt = txt[subset:]
-        text_size = len(txt)
+    return lines
 
 
-def add_txt(title: str, img_path: str):
+def add_txt(text: str, img_path: str):
     """Adding text on image"""
 
-    img = Image.open(img_path, "r")
-    img_width, _ = img.size
+    image = Image.open(img_path, "r")
 
-    drawing = ImageDraw.Draw(img)
+    # Create draw object
+    draw = ImageDraw.Draw(image)
+    # Draw text on image
+    color = "rgb(255,255,255)"  # white color
+    x, y = 10, 20  # initial coordinates
 
-    font = ImageFont.truetype("font/font.ttf", 20)  # шрифт и размера
+    font_path = "/content/font.ttf"
+    font = ImageFont.truetype(font=font_path, size=30)
 
-    for i, line in enumerate(break_text(title, font, img_width)):
-        drawing.text((0, 22 * i), line, font=font, fill="white")
+    lines = text_wrap(text, font, image.size[0])
+    line_height = font.getsize("hg")[1]  # line weight
 
-    return img
+    for line in lines:
+        draw.text((x, y), line, fill=color, font=font)
+
+        y = y + line_height  # update y-axis for new line
+
+    return image

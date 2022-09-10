@@ -47,10 +47,11 @@ CREATE_PACK, SAVE_STICKERPACK_NAME, GENERATE_STICKER, SAVE_STICKER, SAVE_EMOJI, 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
-    await update.message.reply_html(
-        rf"Привет {user.mention_html()}! Введите команду /create_new_stickerpack, чтобы начать генерацию стикерпака",
-        reply_markup=ForceReply(selective=True),
-    )
+    await update.message.reply_text(
+        (f"Привет! Бот позволяет генерировать стикеры с достопримечательностями Санкт-Петербурга и не только!"
+         "На данный момент доступны Казанский собор, Медный всадник, Зимний дворец, Лахта центр, а также можно добавить свои фото"
+         "и генерировать стикеры на их основе. Введите команду /create_new_stickerpack, чтобы начать генерацию стикерпака",
+    ))
     return CREATE_PACK
 
 
